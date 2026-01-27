@@ -1,141 +1,97 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>GEN-SLATER</title>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='main.css') }}"
-    />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOCRATES-AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
   </head>
   <body>
-    <div class="header">
-      <div class="GEN-SLATER">GEN-SLATER</div>
-    </div>
-    <div class="chat-container">
-    </div>
-    <div class="message-input-container">
-      <form action="/chat" method="post">
-        <select id="generation-select" name="generation">
-          <option value="Millennials">Millennials</option>
-          <option value="Generation Z">Gen Z</option>
-          <option value="Generation Alpha">Gen Alpha</option>
-          <option value="Baby Boomers">Baby Boomers</option>
-          <option value="Generation Beta">Gen Beta</option>
-        </select>
+    <header class="header">SOCRATES-AI</header>
+
+    <main class="main">
+      <section class="messages" id="messages"></section>
+
+      <form class="form" id="chat-form">
         <textarea
           name="message"
-          placeholder="Type your text to translate..."
+          id="message-input"
+          placeholder="Ask a question or share a thought..."
           required
         ></textarea>
-        <div class="button-group">
-          <button type="submit" id="send-btn">&#x2191;</button>
-        </div>
+        <button type="submit" id="send-btn">Send</button>
       </form>
-    </div>
-    <script>
-      const chatContainer = document.querySelector(".chat-container");
-      const form = document.querySelector("form");
-      const messageInput = document.querySelector('textarea[name="message"]');
 
-      function scrollToBottom() {
-        // Scroll container and page to bottom to keep latest message in view
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      <div class="status" id="status"></div>
+    </main>
+
+    <script>
+      const form = document.getElementById('chat-form');
+      const messageInput = document.getElementById('message-input');
+      const messages = document.getElementById('messages');
+      const status = document.getElementById('status');
+      const sendBtn = document.getElementById('send-btn');
+
+      function addMessage(role, text) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `message ${role}`;
+
+        const roleLabel = document.createElement('div');
+        roleLabel.className = 'role';
+        roleLabel.textContent = role === 'assistant' ? 'SOCRATES' : 'YOU';
+
+        const body = document.createElement('div');
+        body.textContent = text;
+
+        wrapper.appendChild(roleLabel);
+        wrapper.appendChild(body);
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
       }
 
-      // Submit on Enter (Shift+Enter keeps newline)
-      messageInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter" && !event.shiftKey) {
-          event.preventDefault();
-          form.requestSubmit();
-        }
-      });
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
 
-      form.addEventListener("submit", function (event) {
-          event.preventDefault();
-          const generationSelect = document.getElementById("generation-select");
-          const message = messageInput.value.trim();
-          const generation = generationSelect.value;
-          // chatContainer already defined above
+        const message = messageInput.value.trim();
+        if (!message) return;
 
-          // Don't clear previous chat - keep history
+        addMessage('user', message);
+        messageInput.value = '';
+        sendBtn.disabled = true;
+        status.textContent = 'Thinking...';
 
-          // Append the user's message to the chat container
-          if (message) {
-            const roleDiv = document.createElement("div");
-            roleDiv.classList.add("message-role");
-            roleDiv.classList.add("user");
+        fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (!data.success) {
+              status.textContent = 'Error starting conversation.';
+              sendBtn.disabled = false;
+              return;
+            }
 
-            roleDiv.textContent = "PROMPT";
-            chatContainer.appendChild(roleDiv);
+            addMessage('assistant', '');
+            const assistantMessage = messages.lastChild;
 
-            const userMessageDiv = document.createElement("div");
-            userMessageDiv.classList.add("user-message");
-            userMessageDiv.textContent = message;
-            chatContainer.appendChild(userMessageDiv);
-
-            scrollToBottom();
-          }
-
-          // Clear the message input
-          messageInput.value = "";
-
-          // Send the user's message and generation to the server using AJAX
-          fetch("/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ message: message, generation: generation }),
+            const eventSource = new EventSource('/stream');
+            eventSource.onmessage = function (event) {
+              assistantMessage.lastChild.textContent += event.data;
+              messages.scrollTop = messages.scrollHeight;
+            };
+            eventSource.onerror = function () {
+              eventSource.close();
+              sendBtn.disabled = false;
+              status.textContent = '';
+            };
           })
-            .then((response) => response.json())
-            .then((data) => {
-              if (data.success) {
-                const roleDiv = document.createElement("div");
-                roleDiv.classList.add("message-role");
-                roleDiv.classList.add("assistant");
-
-                roleDiv.textContent = "RESULTS ";
-                
-                const generationTag = document.createElement("span");
-                generationTag.classList.add("generation-tag");
-                generationTag.textContent = generation;
-                
-                roleDiv.appendChild(generationTag);
-                chatContainer.appendChild(roleDiv);
-
-                scrollToBottom();
-
-                // Prepare the assistant's message container
-                const assistantMessageDiv = document.createElement("div");
-                assistantMessageDiv.classList.add("assistant-message");
-                chatContainer.appendChild(assistantMessageDiv);
-
-                scrollToBottom();
-
-                // Open a connection to receive streamed responses
-                const eventSource = new EventSource("/stream");
-                eventSource.onmessage = function (event) {
-                  const currentText = assistantMessageDiv.textContent;
-                  const newText = event.data;
-                  const lastChar = currentText.slice(-1);
-
-                  // Check if we need to add a space (streamed chunks might be missing it)
-                  if (/[.,!?]/.test(lastChar) && newText.charAt(0) !== " ") {
-                    assistantMessageDiv.textContent += " " + newText;
-                  } else {
-                    assistantMessageDiv.textContent += newText;
-                  }
-
-                  // Scroll to the bottom of the chat container
-                  chatContainer.scrollTop = chatContainer.scrollHeight;
-                };
-                eventSource.onerror = function () {
-                  eventSource.close();
-                };
-              }
-            });
-        });
+          .catch((err) => {
+            status.textContent = 'Network error: ' + err.message;
+            sendBtn.disabled = false;
+          });
+      });
     </script>
   </body>
 </html>

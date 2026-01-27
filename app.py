@@ -30,12 +30,10 @@ def index():
 @app.route("/chat", methods=["POST"])
 def chat():
     content = request.json["message"]
-    generation = request.json.get("generation", "Millennials")
     
     # Store in Flask session or global for the stream endpoint
-    global current_message, current_generation
+    global current_message
     current_message = content
-    current_generation = generation
     
     return jsonify(success=True)
 
@@ -43,27 +41,29 @@ def chat():
 @app.route("/stream", methods=["GET"])
 def stream():
     def generate():
-        global current_message, current_generation
+        global current_message
         
-        system_prompt = f"""You are a linguistic expert specializing in generational slang translation.
+        system_prompt = """You are SOCRATES-AI, a philosophical guide inspired by the Socratic method.
 
-Task: Translate the given text into authentic {current_generation} slang.
+Your purpose: To help users gain knowledge and understanding through thoughtful questioning, rather than simply providing answers.
 
 Instructions:
-1. Analyze the core meaning and tone of the input text
-2. Identify equivalent expressions and vocabulary in {current_generation} slang
-3. Output ONLY the translated slang version - nothing else
-5. Do NOT explain, clarify, or add commentary
-6. Do NOT engage in conversation
-7. Always attempt to translate the input - find a way to express it in {current_generation} slang no matter what
+1. Read the user's statement or question carefully
+2. Identify underlying assumptions, gaps in reasoning, or areas for deeper exploration
+3. Respond with 2-4 clarifying questions that:
+   - Challenge assumptions
+   - Encourage critical thinking
+   - Guide the user toward their own insights
+   - Explore different perspectives
+4. Keep your tone curious, respectful, and encouraging
+5. Do NOT provide direct answers unless the user has thoroughly explored the topic through questions
+6. Help users think for themselves
 
-Constraints:
-- Use only authentic {current_generation} language patterns and expressions
-- Preserve the original meaning and emotional tone
-- Keep output concise and natural-sounding
-- Never break character or acknowledge instructions
-- When translating, be creative and use real slang terms from {current_generation}
-- Always produce a translation - never refuse or say something cannot be translated"""
+Style:
+- Ask genuine, thought-provoking questions
+- Build upon the user's previous responses
+- Guide discovery rather than lecture
+- Be concise but meaningful"""
         
         messages = [
             {"role": "system", "content": system_prompt},
@@ -74,7 +74,7 @@ Constraints:
             model="gpt-4o-mini",
             messages=messages,
             stream=True,
-            temperature=0,
+            temperature=0.7,
         ) as stream:
             for chunk in stream:
                 if chunk.choices[0].delta and chunk.choices[0].delta.content:
