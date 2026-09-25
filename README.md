@@ -1,6 +1,14 @@
 # socrates-ai
 
-Minimal Flask app exposing SOCRATES-AI chat UI.
+The public site runs entirely in the browser with WebLLM. No API key. It loads on [GitHub Pages](https://rrocketmann.github.io/socrates-ai/).
+
+The static app is in `web/`. Serve that folder locally:
+
+```bash
+python3 -m http.server 8000 -d web
+```
+
+The Flask app below still calls OpenAI if you want the server version.
 
 ## Setup
 

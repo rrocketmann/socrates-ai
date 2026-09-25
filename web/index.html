@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SOCRATES-AI</title>
+    <link rel="icon" href="static/icon.png" />
+    <link rel="stylesheet" href="static/main.css" />
+  </head>
+  <body>
+    <header class="header">SOCRATES-AI</header>
+
+    <main class="main">
+      <section class="messages" id="messages"></section>
+
+      <form class="form" id="chat-form">
+        <textarea
+          name="message"
+          id="message-input"
+          placeholder="Ask a question or share a thought..."
+          required
+          disabled
+        ></textarea>
+        <button type="submit" id="send-btn" disabled>Send</button>
+      </form>
+
+      <div class="status" id="status">Loading…</div>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
